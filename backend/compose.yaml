@@ -1,0 +1,36 @@
+services:
+  database:
+    image: mysql:8.4
+    restart: unless-stopped
+    environment:
+      MYSQL_DATABASE: sauto
+      MYSQL_USER: ${SAUTO_DATABASE_USERNAME:-sauto_user}
+      MYSQL_PASSWORD: ${SAUTO_DATABASE_PASSWORD:?Set SAUTO_DATABASE_PASSWORD in the root .env file}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?Set MYSQL_ROOT_PASSWORD in the root .env file}
+    volumes:
+      - sauto-mysql-data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h localhost -u root -p\"$$MYSQL_ROOT_PASSWORD\" --silent"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  api:
+    build:
+      context: ..
+      dockerfile: backend/Dockerfile
+    restart: unless-stopped
+    environment:
+      PORT: 8080
+      SAUTO_DATABASE_URL: jdbc:mysql://database:3306/sauto
+      SAUTO_DATABASE_USERNAME: ${SAUTO_DATABASE_USERNAME:-sauto_user}
+      SAUTO_DATABASE_PASSWORD: ${SAUTO_DATABASE_PASSWORD:?Set SAUTO_DATABASE_PASSWORD in the root .env file}
+      SAUTO_CORS_ORIGINS: ${SAUTO_CORS_ORIGINS:-http://localhost:8000}
+    depends_on:
+      database:
+        condition: service_healthy
+    ports:
+      - "8080:8080"
+
+volumes:
+  sauto-mysql-data:
